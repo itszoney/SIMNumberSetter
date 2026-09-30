@@ -1,11 +1,14 @@
 package com.kieronquinn.app.simnumbersetter.ui.activities
 
 import android.os.Bundle
-import androidx.core.view.WindowCompat
+import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.kieronquinn.app.simnumbersetter.R
 import com.kieronquinn.monetcompat.app.MonetCompatActivity
 import com.kieronquinn.monetcompat.core.MonetCompat
+import kotlinx.coroutines.launch
 
 class MainActivity : MonetCompatActivity() {
 
@@ -15,10 +18,12 @@ class MainActivity : MonetCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MonetCompat.enablePaletteCompat()
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        lifecycleScope.launchWhenCreated {
-            monet.awaitMonetReady()
-            setContentView(R.layout.activity_main)
+        enableEdgeToEdge()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                monet.awaitMonetReady()
+                setContentView(R.layout.activity_main)
+            }
         }
     }
 

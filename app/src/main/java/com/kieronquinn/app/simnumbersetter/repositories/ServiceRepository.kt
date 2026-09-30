@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.util.Log
 import com.kieronquinn.app.simnumbersetter.IPhoneNumberSetter
 import com.kieronquinn.app.simnumbersetter.utils.extensions.applySecurity
 import com.kieronquinn.app.simnumbersetter.utils.extensions.suspendCoroutineWithTimeout
@@ -28,6 +29,7 @@ class ServiceRepositoryImpl(private val context: Context): ServiceRepository {
 
     companion object {
         private val SERVICE_TIMEOUT = TimeUnit.SECONDS.toMillis(10)
+        private const val TAG = "ServiceRepository"
     }
 
     private var serviceInstance: IPhoneNumberSetter? = null
@@ -81,9 +83,25 @@ class ServiceRepositoryImpl(private val context: Context): ServiceRepository {
                     serviceInstance = null
                     serviceConnection = null
                 }
+
+                override fun onBindingDied(name: ComponentName) {
+                    serviceInstance = null
+                    serviceConnection = null
+                }
+
+                override fun onNullBinding(name: ComponentName) {
+                    Log.w(TAG, "onNullBinding for $name")
+                    serviceInstance = null
+                    serviceConnection = null
+                    getServiceMutex.unlock()
+                }
             }
             withContext(Dispatchers.Main) {
-                context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
+                val bound = context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
+                if (!bound) {
+                    Log.w(TAG, "bindService returned false for ${serviceIntent.action}")
+                    getServiceMutex.unlock()
+                }
             }
         }
     }

@@ -15,13 +15,13 @@ class RootRepositoryImpl: RootRepository {
 
     override suspend fun isRooted(): Boolean {
         return withContext(Dispatchers.IO) {
-            Shell.rootAccess()
+            Shell.isAppGrantedRoot() ?: false
         }
     }
 
     override suspend fun runRootCommand(command: String): Shell.Result {
         return withContext(Dispatchers.IO){
-            Shell.su(command).exec()
+            Shell.cmd(command).exec()
         }
     }
 

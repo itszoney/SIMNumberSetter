@@ -35,19 +35,19 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.15.0'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'com.github.KieronQuinn:MonetCompat:0.4.1'
     implementation 'androidx.palette:palette:1.0.0'
-    implementation 'io.insert-koin:koin-android:4.0.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
+    implementation 'io.insert-koin:koin-android:4.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.3'
     implementation 'com.github.topjohnwu.libsu:core:5.2.2'
     implementation 'com.github.topjohnwu.libsu:service:5.2.2'
     compileOnly project(path: ':systemstubs')
-    compileOnly 'io.github.libxposed:api:101'
-    compileOnly 'io.github.libxposed:service:101'
+    compileOnly 'io.github.libxposed:api:102.0.0'
+    compileOnly 'io.github.libxposed:service:102.0.0'
 }

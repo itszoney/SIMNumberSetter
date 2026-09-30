@@ -8,7 +8,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.*
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.kieronquinn.app.simnumbersetter.R
 import com.kieronquinn.app.simnumbersetter.databinding.FragmentMainBinding
 import com.kieronquinn.app.simnumbersetter.ui.screens.main.MainViewModel.*
@@ -18,9 +20,7 @@ import com.kieronquinn.app.simnumbersetter.utils.extensions.onClicked
 import com.kieronquinn.monetcompat.app.MonetFragment
 import com.kieronquinn.monetcompat.core.MonetCompat
 import com.kieronquinn.monetcompat.extensions.views.applyMonet
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.lang.NullPointerException
 
@@ -53,11 +53,15 @@ class MainFragment: Fragment() {
         setupInsets()
         setupState()
         setupToolbar()
-        setupNumber()
         setupMonet()
         setupSaveButton()
         setupCloseButton()
         setupInput()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun setupInsets() {
@@ -99,36 +103,43 @@ class MainFragment: Fragment() {
         }
     }
 
-    private fun setupSaveButton() = viewLifecycleOwner.lifecycleScope.launchWhenResumed {
-        with(binding.includeMainLoaded.includeMainLoadedCardEdit.mainLoadedCardEditInputSave) {
-            onClicked().collect {
-                it.hideIme()
-                viewModel.onSaveClicked()
+    private fun setupSaveButton() = viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            with(binding.includeMainLoaded.includeMainLoadedCardEdit.mainLoadedCardEditInputSave) {
+                onClicked().collect {
+                    it.hideIme()
+                    viewModel.onSaveClicked()
+                }
             }
         }
     }
 
-    private fun setupCloseButton() = viewLifecycleOwner.lifecycleScope.launchWhenResumed {
-        with(binding.includeMainError.mainErrorClose) {
-            onClicked().collect {
-                requireActivity().finish()
+    private fun setupCloseButton() = viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            with(binding.includeMainError.mainErrorClose) {
+                onClicked().collect {
+                    requireActivity().finish()
+                }
             }
         }
     }
 
-    private fun setupInput() = viewLifecycleOwner.lifecycleScope.launchWhenResumed {
-        with(binding.includeMainLoaded.includeMainLoadedCardEdit.mainLoadedCardEditEdit){
-            onChanged().collect {
-                viewModel.onNumberChanged(it?.toString() ?: "")
+    private fun setupInput() = viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            with(binding.includeMainLoaded.includeMainLoadedCardEdit.mainLoadedCardEditEdit){
+                onChanged().collect {
+                    viewModel.onNumberChanged(it?.toString() ?: "")
+                }
             }
         }
     }
 
     private fun setupState() {
-        handleState(viewModel.state.value)
-        viewLifecycleOwner.lifecycleScope.launchWhenResumed {
-            viewModel.state.collect {
-                handleState(it)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                viewModel.state.collect {
+                    handleState(it)
+                }
             }
         }
     }
@@ -140,24 +151,14 @@ class MainFragment: Fragment() {
         when(state) {
             is State.Loading -> setupWithLoading(state.loadType)
             is State.Error -> setupWithError(state.errorType)
-            is State.Loaded -> setupWithLoaded(state.number)
-        }
-    }
-
-    private fun setupNumber() {
-        viewModel.number.value?.let {
-            handleNumber(it)
-        } ?: run {
-            viewLifecycleOwner.lifecycleScope.launchWhenResumed {
-                viewModel.number.filterNotNull().take(1).collect {
-                    handleNumber(it)
-                }
-            }
+            is State.Loaded -> setupWithLoaded(state.number, state.editableNumber)
         }
     }
 
     private fun handleNumber(number: String) = with(binding.includeMainLoaded.includeMainLoadedCardEdit) {
-        mainLoadedCardEditEdit.setText(number, TextView.BufferType.EDITABLE)
+        if (mainLoadedCardEditEdit.text?.toString() != number) {
+            mainLoadedCardEditEdit.setText(number, TextView.BufferType.EDITABLE)
+        }
     }
 
     private fun setupWithLoading(loadType: LoadType) = with(binding.includeMainLoading) {
@@ -168,12 +169,13 @@ class MainFragment: Fragment() {
         mainErrorContent.setText(errorType.messageRes)
     }
 
-    private fun setupWithLoaded(number: String) = with(binding.includeMainLoaded) {
+    private fun setupWithLoaded(number: String, editableNumber: String) = with(binding.includeMainLoaded) {
         val formattedNumber = number.ifEmpty {
             getString(R.string.main_loaded_card_edit_number_empty)
         }
         includeMainLoadedCardEdit.mainLoadedCardEditCurrent.text =
             getString(R.string.main_loaded_card_edit_content, formattedNumber)
+        handleNumber(editableNumber)
     }
 
 }

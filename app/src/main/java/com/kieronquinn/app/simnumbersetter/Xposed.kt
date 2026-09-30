@@ -1,5 +1,6 @@
 package com.kieronquinn.app.simnumbersetter
 
+import android.content.Context
 import android.content.Intent
 import com.kieronquinn.app.simnumbersetter.service.PhoneNumberSetterService
 import com.kieronquinn.app.simnumbersetter.utils.extensions.checkSecurity
@@ -12,6 +13,16 @@ import io.github.libxposed.api.XposedModuleInterface
  *  and used to query and set the number.
  */
 class Xposed : XposedModule() {
+
+    private val moduleUid: Int by lazy {
+        val atClass = Class.forName("android.app.ActivityThread")
+        val currentAt = atClass.getMethod("currentActivityThread").invoke(null)
+        val systemContext = atClass
+            .getMethod("getSystemContext")
+            .invoke(currentAt) as Context
+        systemContext.packageManager
+            .getApplicationInfo(BuildConfig.APPLICATION_ID, 0).uid
+    }
 
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         if (param.packageName != "com.android.phone") return
@@ -27,10 +38,7 @@ class Xposed : XposedModule() {
             .setId("telephony-debug-onbind")
             .intercept { chain ->
                 val intent = chain.getArg(0) as Intent
-                val ctx = com.android.internal.telephony.PhoneFactory
-                    .getDefaultPhone()
-                    ?.context
-                if (ctx != null && intent.checkSecurity(ctx)) {
+                if (intent.checkSecurity(moduleUid)) {
                     PhoneNumberSetterService()
                 } else {
                     chain.proceed()

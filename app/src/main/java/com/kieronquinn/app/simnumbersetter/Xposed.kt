@@ -27,7 +27,10 @@ class Xposed : XposedModule() {
             .setId("telephony-debug-onbind")
             .intercept { chain ->
                 val intent = chain.getArg(0) as Intent
-                if (intent.checkSecurity()) {
+                val ctx = com.android.internal.telephony.PhoneFactory
+                    .getDefaultPhone()
+                    ?.context
+                if (ctx != null && intent.checkSecurity(ctx)) {
                     PhoneNumberSetterService()
                 } else {
                     chain.proceed()

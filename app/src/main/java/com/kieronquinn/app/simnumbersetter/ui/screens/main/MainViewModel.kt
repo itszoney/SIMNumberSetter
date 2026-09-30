@@ -12,21 +12,22 @@ import com.kieronquinn.app.simnumbersetter.repositories.PermissionRepository
 import com.kieronquinn.app.simnumbersetter.repositories.RootRepository
 import com.kieronquinn.app.simnumbersetter.repositories.ServiceRepository
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.lang.Exception
 
 abstract class MainViewModel : ViewModel() {
 
     abstract val state: StateFlow<State>
-    abstract val number: StateFlow<String?>
     abstract fun onNumberChanged(newNumber: String)
     abstract fun onSaveClicked()
     abstract fun onMenuItemClicked(context: Context, id: Int)
 
     sealed class State {
         data class Loading(val loadType: LoadType) : State()
-        data class Loaded(internal val number: String) : State()
+        data class Loaded(val number: String, val editableNumber: String) : State()
         data class Error(val errorType: ErrorType) : State()
     }
 
@@ -55,25 +56,26 @@ class MainViewModelImpl(
         private const val URL_DONATE = "https://kieronquinn.co.uk/redirect/SNS/donate"
     }
 
-    private val customNumber = MutableStateFlow<String?>(null)
-
-    override val state = MutableStateFlow<State>(State.Loading(LoadType.LOADING))
-    override val number = combine(customNumber, state) { n, s ->
-        when {
-            n != null -> n
-            s is State.Loaded -> s.number
-            else -> null
-        }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    private val _state = MutableStateFlow<State>(State.Loading(LoadType.LOADING))
+    override val state: StateFlow<State> = _state.asStateFlow()
 
     override fun onNumberChanged(newNumber: String) {
-        viewModelScope.launch {
-            customNumber.emit(newNumber)
+        _state.update { current ->
+            if (current is State.Loaded) {
+                current.copy(editableNumber = newNumber)
+            } else {
+                current
+            }
         }
     }
 
     override fun onSaveClicked() {
-        save(number.value ?: "")
+        val current = _state.value
+        val number = when (current) {
+            is State.Loaded -> current.editableNumber
+            else -> ""
+        }
+        save(number)
     }
 
     override fun onMenuItemClicked(context: Context, id: Int) {
@@ -92,13 +94,13 @@ class MainViewModelImpl(
     }
 
     private fun load() = viewModelScope.launch {
-        state.emit(State.Loading(LoadType.LOADING))
+        _state.value = State.Loading(LoadType.LOADING)
         if (!rootRepository.isRooted()) {
-            state.emit(State.Error(ErrorType.NO_ROOT))
+            _state.value = State.Error(ErrorType.NO_ROOT)
             return@launch
         }
         if (!permissionRepository.grantDumpPermission()) {
-            state.emit(State.Error(ErrorType.NO_PERMISSION))
+            _state.value = State.Error(ErrorType.NO_PERMISSION)
             return@launch
         }
         val number = try {
@@ -108,14 +110,17 @@ class MainViewModelImpl(
         } catch (e: Exception) {
             null
         } ?: run {
-            state.emit(State.Error(ErrorType.NO_XPOSED))
+            _state.value = State.Error(ErrorType.NO_XPOSED)
             return@launch
         }
-        state.emit(State.Loaded(number))
+        _state.value = State.Loaded(
+            number = number,
+            editableNumber = number
+        )
     }
 
     private fun save(number: String) = viewModelScope.launch {
-        state.emit(State.Loading(LoadType.SAVING))
+        _state.value = State.Loading(LoadType.SAVING)
         val result = try {
             serviceRepository.runWithService {
                 it.setLine1Number(number, null)
@@ -123,15 +128,14 @@ class MainViewModelImpl(
         } catch (e: Exception) {
             null
         } ?: run {
-            state.emit(State.Error(ErrorType.NO_XPOSED))
+            _state.value = State.Error(ErrorType.NO_XPOSED)
             return@launch
         }
-        customNumber.emit(null)
         delay(1000L)
         if (result) {
             load()
         } else {
-            state.emit(State.Error(ErrorType.SAVE_FAILED))
+            _state.value = State.Error(ErrorType.SAVE_FAILED)
         }
     }
 

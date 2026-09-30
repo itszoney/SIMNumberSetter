@@ -18,7 +18,11 @@ fun Intent.applySecurity(context: Context) {
     ))
 }
 
-fun Intent.checkSecurity(): Boolean {
+fun Intent.checkSecurity(context: Context): Boolean {
     val pendingIntent = getParcelableExtra<PendingIntent>(KEY_PENDING_INTENT) ?: return false
-    return pendingIntent.creatorPackage == BuildConfig.APPLICATION_ID
+    val creatorUid = pendingIntent.creatorUid
+    val selfUid = context.packageManager.getApplicationInfo(
+        BuildConfig.APPLICATION_ID, 0
+    ).uid
+    return creatorUid == selfUid
 }

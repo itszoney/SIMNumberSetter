@@ -2,8 +2,12 @@ package com.kieronquinn.app.simnumbersetter.repositories
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Process
+import android.os.UserHandle
+import android.util.Log
 import com.kieronquinn.app.simnumbersetter.BuildConfig
 import com.kieronquinn.app.simnumbersetter.repositories.PermissionRepository.Companion.PERMISSION_DUMP
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -23,19 +27,28 @@ class PermissionRepositoryImpl(
 ): PermissionRepository {
 
     private fun hasDumpPermission(): Boolean {
-        return context.checkCallingOrSelfPermission(PERMISSION_DUMP) == PackageManager.PERMISSION_GRANTED
+        return context.packageManager.checkPermission(
+            PERMISSION_DUMP, BuildConfig.APPLICATION_ID
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private suspend fun runGrantCommand() {
-        rootRepository.runRootCommand(
-            "pm grant ${BuildConfig.APPLICATION_ID} $PERMISSION_DUMP"
+    private suspend fun runGrantCommand(): Shell.Result {
+        val userId = UserHandle.getUserId(Process.myUid())
+        return rootRepository.runRootCommand(
+            "pm grant --user $userId ${BuildConfig.APPLICATION_ID} $PERMISSION_DUMP"
         )
     }
 
     override suspend fun grantDumpPermission(): Boolean {
         return withContext(Dispatchers.IO) {
             if(!hasDumpPermission()){
-                runGrantCommand()
+                val result = runGrantCommand()
+                if(!result.isSuccess){
+                    Log.w(
+                        "PermissionRepository",
+                        "DUMP grant failed: ${result.err.joinToString("\n")}"
+                    )
+                }
                 hasDumpPermission()
             }else true
         }

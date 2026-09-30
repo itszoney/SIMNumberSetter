@@ -12,13 +12,13 @@ import org.koin.dsl.module
 class Application: Application() {
 
     private val repositories = module {
-        single<PermissionRepository> { PermissionRepositoryImpl(get(), get()) }
-        single<RootRepository> { RootRepositoryImpl() }
-        single<ServiceRepository> { ServiceRepositoryImpl(get()) }
+        single { PermissionRepositoryImpl(get(), get()) }
+        single { RootRepositoryImpl() }
+        single { ServiceRepositoryImpl(get()) }
     }
 
     private val viewModels = module {
-        viewModel<MainViewModel> { MainViewModelImpl(get(), get(), get()) }
+        viewModel { MainViewModelImpl(get(), get(), get()) }
     }
 
     override fun onCreate() {

@@ -47,22 +47,20 @@ class ServiceRepositoryImpl(private val context: Context): ServiceRepository {
     }
 
     override fun <T> runWithServiceIfAvailable(block: (IPhoneNumberSetter) -> T?): T? {
-        return serviceInstance?.let {
-            block(it)
-        }
+        return serviceInstance?.let { block(it) }
     }
 
     override fun unbindServiceIfNeeded() {
         serviceConnection?.let {
             try {
                 context.unbindService(it)
-            }catch (e: IllegalArgumentException){
+            } catch (e: IllegalArgumentException) {
                 //Already unregistered
             }
         }
     }
 
-    private suspend fun getServiceLocked() = suspendCoroutineWithTimeout<IPhoneNumberSetter>(SERVICE_TIMEOUT) { resume ->
+    private suspend fun getServiceLocked() = suspendCoroutineWithTimeout(SERVICE_TIMEOUT) { resume ->
         runBlocking {
             getServiceMutex.lock()
             serviceInstance?.let {
@@ -70,11 +68,11 @@ class ServiceRepositoryImpl(private val context: Context): ServiceRepository {
                 getServiceMutex.unlock()
                 return@runBlocking
             }
-            val serviceConnection = object : ServiceConnection {
+            val connection = object : ServiceConnection {
                 override fun onServiceConnected(component: ComponentName, binder: IBinder) {
                     serviceInstance = IPhoneNumberSetter.Stub.asInterface(binder)
                     binder.pingBinder()
-                    serviceConnection = this
+                    this@ServiceRepositoryImpl.serviceConnection = this
                     resume.resume(serviceInstance!!)
                     getServiceMutex.unlock()
                 }
@@ -85,7 +83,7 @@ class ServiceRepositoryImpl(private val context: Context): ServiceRepository {
                 }
             }
             withContext(Dispatchers.Main) {
-                context.bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
             }
         }
     }
